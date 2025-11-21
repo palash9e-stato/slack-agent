@@ -1,0 +1,267 @@
+{
+  "name": "PROJECT-2",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "USER FEEDBACK FORM",
+        "formFields": {
+          "values": [
+            { "fieldLabel": "Full Name", "placeholder": "your full name..." },
+            { "fieldLabel": "Email", "placeholder": "your email address..." },
+            { "fieldLabel": "Contact", "placeholder": "your phone number..." },
+            { "fieldLabel": "Feedback" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [-256, -112],
+      "id": "form-submission",
+      "name": "On form submission",
+      "webhookId": "REPLACE_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Your role is to classify the feedback as a compliment, complaint, or feature addition request.\nFeedback: {{ $json.Feedback }}\nRespond with only one of the following:\n1. Complain\n2. Compliment\n3. Feature Addition Request"
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [208, 0],
+      "id": "ai-agent",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [80, 208],
+      "id": "gemini-model",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": "={{ $env.GEMINI_API_KEY }}"
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [512, -368],
+      "id": "merge-node",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output }}",
+                    "rightValue": "Complain",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output }}",
+                    "rightValue": "Compliment",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output }}",
+                    "rightValue": "Feature Addition Request",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [720, -368],
+      "id": "switch-node",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": "REPLACE_AIRTABLE_BASE_ID",
+        "table": "REPLACE_TABLE_ID_COMPLAIN",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Full Name": "={{ $json['Full Name'] }}",
+            "Email": "={{ $json.Email }}",
+            "Contact No.": "={{ $json.Contact }}",
+            "Feedback": "={{ $json.Feedback }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [880, -544],
+      "id": "complain-table",
+      "name": "Complain",
+      "credentials": {
+        "airtableTokenApi": "={{ $env.AIRTABLE_API_KEY }}"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": "REPLACE_AIRTABLE_BASE_ID",
+        "table": "REPLACE_TABLE_ID_COMPLIMENT",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Full Name": "={{ $json['Full Name'] }}",
+            "Email": "={{ $json.Email }}",
+            "Contact No.": "={{ $json.Contact }}",
+            "Feedback": "={{ $json.Feedback }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [992, -352],
+      "id": "compliment-table",
+      "name": "Compliment",
+      "credentials": {
+        "airtableTokenApi": "={{ $env.AIRTABLE_API_KEY }}"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": "REPLACE_AIRTABLE_BASE_ID",
+        "table": "REPLACE_TABLE_ID_FAR",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Full Name": "={{ $json['Full Name'] }}",
+            "Email": "={{ $json.Email }}",
+            "Contact No.": "={{ $json.Contact }}",
+            "Feedback": "={{ $json.Feedback }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [912, -160],
+      "id": "far-table",
+      "name": "Feature Addition Request",
+      "credentials": {
+        "airtableTokenApi": "={{ $env.AIRTABLE_API_KEY }}"
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": "REPLACE_SLACK_CHANNEL_ID_COMPLAIN",
+        "text": "={{ $('Switch').item.json['Full Name'] }}\n{{ $('Switch').item.json.Email }}\n{{ $('Switch').item.json.Feedback }}"
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [1088, -544],
+      "id": "slack-msg-complain",
+      "name": "Send Slack Message (Complaints)",
+      "credentials": {
+        "slackOAuth2Api": "={{ $env.SLACK_OAUTH }}"
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": "REPLACE_SLACK_CHANNEL_ID_FAR",
+        "text": "={{ $('Switch').item.json.Feedback }}"
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [1120, -160],
+      "id": "slack-msg-far",
+      "name": "Send Slack Message (Feature Request)",
+      "credentials": {
+        "slackOAuth2Api": "={{ $env.SLACK_OAUTH }}"
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Switch').item.json.Email }}",
+        "subject": "We've received your complaint.",
+        "emailType": "text",
+        "message": "=Hello {{ $('Merge').item.json['Full Name'] }}, we appreciate your feedback and will work to resolve your concern ({{ $('Merge').item.json.Feedback }}) as soon as possible."
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1280, -544],
+      "id": "email-complain",
+      "name": "Send Email (Complaints)",
+      "credentials": {
+        "gmailOAuth2": "={{ $env.GMAIL_OAUTH }}"
+      }
+    }
+  ],
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          { "node": "AI Agent", "type": "main", "index": 0 },
+          { "node": "Merge", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]
+      ]
+    },
+    "AI Agent": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 1 }]]
+    },
+    "Merge": {
+      "main": [[{ "node": "Switch", "type": "main", "index": 0 }]]
+    },
+    "Switch": {
+      "main": [
+        [{ "node": "Complain", "type": "main", "index": 0 }],
+        [{ "node": "Compliment", "type": "main", "index": 0 }],
+        [{ "node": "Feature Addition Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "Complain": {
+      "main": [[{ "node": "Send Slack Message (Complaints)", "type": "main", "index": 0 }]]
+    },
+    "Feature Addition Request": {
+      "main": [[{ "node": "Send Slack Message (Feature Request)", "type": "main", "index": 0 }]]
+    },
+    "Send Slack Message (Complaints)": {
+      "main": [[{ "node": "Send Email (Complaints)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "meta": {},
+  "id": "REPLACE_WORKFLOW_ID"
+}
