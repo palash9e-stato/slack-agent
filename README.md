@@ -1,0 +1,3 @@
+**SLACK AGENT**
+
+This workflow collects feedback from users through a simple form and uses a Gemini AI model to understand whether the message is a compliment, a complaint, or a feature request. Based on the AI’s classification, the feedback is automatically sent to the right Airtable table, and the relevant Slack channel gets a notification. If the user submits a complaint, the workflow also sends a friendly confirmation email to let them know their concern is being taken care of. It’s a smooth, fully-automated system that shows how forms, AI, logic flows, and notifications can work together in n8n.
